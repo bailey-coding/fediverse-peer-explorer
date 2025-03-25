@@ -1,0 +1,17 @@
+[project]
+name = "fediverse-peer-explorer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiohttp>=3.11.14",
+    "aiohttp-client-cache[all]>=0.12.4",
+    "tabulate>=0.9.0",
+    "tqdm>=4.67.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
