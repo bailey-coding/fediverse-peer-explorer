@@ -97,15 +97,15 @@ async def main():
         semaphore = asyncio.Semaphore(50)
         # progress = tqdm(total=len(peers))
         tasks = []
-        one_day_ago = datetime.now(UTC) - timedelta(days=1)
+        six_hours_ago = datetime.now(UTC) - timedelta(hours=6)
         fetched_peers = []
         for p in peers:
             if p in existing_domains:
                 data = existing_domains[p]
                 if (
-                    "DNSError" in data["error"]
+                    (any(i in data["error"] for i in ("DNSError", "CertificateError"))
                     or datetime.fromtimestamp(data["last_updated_at"], tz=UTC)
-                    > one_day_ago
+                    > six_hours_ago
                 ):
                     results.append(
                         FediverseInstance(
