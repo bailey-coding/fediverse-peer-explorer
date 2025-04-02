@@ -96,7 +96,7 @@ async def update(args):
         cache=SQLiteBackend("demo_cache"),
         timeout=ClientTimeout(total=15, sock_connect=15),
     ) as session:
-        peers.extend(
+        peers = (
             await (
                 await session.get(f'https://{domain}/api/v1/instance/peers')
             ).json()
