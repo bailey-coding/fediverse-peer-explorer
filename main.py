@@ -15,6 +15,7 @@ from aiohttp import (
     ClientResponseError,
     ClientSession,
     ClientTimeout,
+    ServerDisconnectedError,
 )
 from aiohttp.client_exceptions import (
     ClientConnectorDNSError,
