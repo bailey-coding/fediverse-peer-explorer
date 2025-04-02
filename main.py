@@ -36,7 +36,7 @@ async def fetch(
     async with semaphore:
         try:
             async with session.get(f"https://{peer}/.well-known/nodeinfo") as response:
-                # TODO: If error, check if it's a 404 or 500/network error, as these may 
+                # TODO: If error, check if it's a 404 or 500/network error, as these may
                 # indicate that the server is no longer existent.
 
                 if progress:
@@ -57,8 +57,8 @@ async def fetch(
                     ]
                     if len(links) == 0:
                         raise Exception(node_info_links["links"])
-                    
-                    # TODO: Verify the link is same domain (and that it doesn't resolve 
+
+                    # TODO: Verify the link is same domain (and that it doesn't resolve
                     # to a network-internal resource).
                     node_info = await (
                         await session.get(node_info_links["links"][0]["href"])
@@ -98,19 +98,17 @@ async def update(args):
         existing_rows = cur.fetchall()
     existing_domains = {row["domain"]: row for row in existing_rows}
     results = []
-    
+
     async with CachedSession(
         cache=SQLiteBackend("demo_cache"),
         timeout=ClientTimeout(total=15, sock_connect=15),
         headers={
             "User-Agent": f"Fediverse Peer Explorer/{VERSION} ({SERVER_SOFTWARE}; +https://{domain}/) (like Mastodon)"
-        }
+        },
     ) as session:
-        peers = (
-            await (
-                await session.get(f'https://{domain}/api/v1/instance/peers')
-            ).json()
-        )
+        peers = await (
+            await session.get(f"https://{domain}/api/v1/instance/peers")
+        ).json()
 
         progress = None
         semaphore = asyncio.Semaphore(50)
@@ -122,10 +120,10 @@ async def update(args):
             if p in existing_domains:
                 data = existing_domains[p]
                 if (
-                    (any(i in data["error"] for i in ("DNSError", "CertificateError")))
-                    or datetime.fromtimestamp(data["last_updated_at"], tz=UTC)
-                    > six_hours_ago
-                ):
+                    any(i in data["error"] for i in ("DNSError", "CertificateError"))
+                ) or datetime.fromtimestamp(
+                    data["last_updated_at"], tz=UTC
+                ) > six_hours_ago:
                     results.append(
                         FediverseInstance(
                             domain=data["domain"],
@@ -211,20 +209,26 @@ async def query(args):
 
 
 async def main():
-    parser = argparse.ArgumentParser(prog='fediverse-peer-explorer')
+    parser = argparse.ArgumentParser(prog="fediverse-peer-explorer")
     # parser.add_argument('--foo', action='store_true', help='foo help')
-    subparsers = parser.add_subparsers(help='when does this show?', required=True)
-    parser_query = subparsers.add_parser('query', help='print data from DB')
+    subparsers = parser.add_subparsers(help="when does this show?", required=True)
+    parser_query = subparsers.add_parser("query", help="print data from DB")
     parser_query.set_defaults(func=query)
     # parser_query.add_argument('bar', type=int, help='bar help')
-    parser_update = subparsers.add_parser('update', help='fetch peer software + versions')
-    parser_update.add_argument('domain', type=str, help='domain where we\'ll fetch peers from')
+    parser_update = subparsers.add_parser(
+        "update", help="fetch peer software + versions"
+    )
+    parser_update.add_argument(
+        "domain", type=str, help="domain where we'll fetch peers from"
+    )
     parser_update.set_defaults(func=update)
     args = parser.parse_args()
     await args.func(args)
 
+
 def outer_main():
     asyncio.run(main())
+
 
 if __name__ == "__main__":
     outer_main()
