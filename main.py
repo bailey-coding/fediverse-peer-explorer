@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import asyncio
 import sqlite3
 from dataclasses import dataclass
@@ -27,6 +28,9 @@ async def fetch(
     async with semaphore:
         try:
             async with session.get(f"https://{peer}/.well-known/nodeinfo") as response:
+                # TODO: If error, check if it's a 404 or 500/network error, as these may 
+                # indicate that the server is no longer existent.
+
                 if progress:
                     progress.update(1)
                 # print(f'Fetching data for {peer}')
@@ -37,16 +41,21 @@ async def fetch(
                         for link in node_info_links["links"]
                         if link["rel"]
                         in (
-                            "https://nodeinfo.diaspora.software/ns/schema/1.0",
+                            "http://nodeinfo.diaspora.software/ns/schema/1.0",
+                            "http://nodeinfo.diaspora.software/ns/schema/1.1",
                             "http://nodeinfo.diaspora.software/ns/schema/2.0",
                             "http://nodeinfo.diaspora.software/ns/schema/2.1",
                         )
                     ]
                     if len(links) == 0:
                         raise Exception(node_info_links["links"])
+                    
+                    # TODO: Verify the link is same domain (and that it doesn't resolve 
+                    # to a network-internal resource).
                     node_info = await (
                         await session.get(node_info_links["links"][0]["href"])
                     ).json()
+
                     return FediverseInstance(
                         peer,
                         last_updated_at=datetime.now(UTC).timestamp(),
@@ -70,6 +79,11 @@ async def fetch(
 
 
 async def main():
+    domain = sys.argv[1]
+    if not domain:
+        print('Missing domain argument, usage: python main.py [domain]')
+        sys.exit(1)
+
     con = sqlite3.connect("db.sqlite")
     con.row_factory = sqlite3.Row
     with con:
@@ -80,19 +94,17 @@ async def main():
         existing_rows = cur.fetchall()
     existing_domains = {row["domain"]: row for row in existing_rows}
     results = []
+    
     async with CachedSession(
         cache=SQLiteBackend("demo_cache"),
         timeout=ClientTimeout(total=15, sock_connect=15),
     ) as session:
-        peers = ["hachyderm.io"]
         peers.extend(
             await (
-                await session.get("https://hachyderm.io/api/v1/instance/peers")
+                await session.get(f'https://{domain}/api/v1/instance/peers')
             ).json()
         )
-        # peers = [
-        #     'pixelfed.social'
-        # ]
+
         progress = None
         semaphore = asyncio.Semaphore(50)
         # progress = tqdm(total=len(peers))
@@ -119,6 +131,7 @@ async def main():
                     continue
             fetched_peers.append(p)
             tasks.append(fetch(session, p, semaphore, progress))
+
         task_results = await asyncio.gather(
             *tasks,
             return_exceptions=True,  # default is false, that would raise
