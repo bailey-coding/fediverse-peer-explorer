@@ -10,6 +10,7 @@ from typing import Optional
 
 import aiohttp
 from aiohttp import ClientSession, ClientTimeout
+from aiohttp.http import SERVER_SOFTWARE
 from aiohttp_client_cache import CachedSession, SQLiteBackend
 from tabulate import tabulate
 from tqdm import tqdm
@@ -103,7 +104,7 @@ async def update(args):
         cache=SQLiteBackend("demo_cache"),
         timeout=ClientTimeout(total=15, sock_connect=15),
         headers={
-            "User-Agent": f"Fediverse Peer Explorer (Python/{VERSION}; +https://{domain}/) (like Mastodon)"
+            "User-Agent": f"Fediverse Peer Explorer/{VERSION} ({SERVER_SOFTWARE}; +https://{domain}/) (like Mastodon)"
         }
     ) as session:
         peers = (
