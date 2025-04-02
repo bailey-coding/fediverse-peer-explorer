@@ -5,6 +5,7 @@ import sqlite3
 import sys
 from dataclasses import dataclass
 from datetime import datetime, UTC, timedelta
+from subprocess import check_output
 from typing import Optional
 
 import aiohttp
@@ -12,6 +13,12 @@ from aiohttp import ClientSession, ClientTimeout
 from aiohttp_client_cache import CachedSession, SQLiteBackend
 from tabulate import tabulate
 from tqdm import tqdm
+
+
+try:
+    VERSION = check_output("git", "rev-parse", "--short", "HEAD")
+except Exception:
+    VERSION = "unknown"
 
 
 @dataclass
@@ -95,6 +102,9 @@ async def update(args):
     async with CachedSession(
         cache=SQLiteBackend("demo_cache"),
         timeout=ClientTimeout(total=15, sock_connect=15),
+        headers={
+            "User-Agent": f"Fediverse Peer Explorer (Python/{VERSION}; +https://{domain}/) (like Mastodon)"
+        }
     ) as session:
         peers = (
             await (
