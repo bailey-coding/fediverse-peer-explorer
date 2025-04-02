@@ -16,3 +16,9 @@ dev = [
     "ipython>=9.0.2",
     "pytest>=8.3.5",
 ]
+
+[tool.uv]
+package = true
+
+[project.scripts]
+fpe = "main:outer_main"
