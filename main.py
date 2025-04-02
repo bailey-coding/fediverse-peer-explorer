@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import sys
+import argparse
 import asyncio
 import sqlite3
+import sys
 from dataclasses import dataclass
 from datetime import datetime, UTC, timedelta
 from typing import Optional
@@ -78,12 +79,8 @@ async def fetch(
             )
 
 
-async def main():
-    domain = sys.argv[1]
-    if not domain:
-        print('Missing domain argument, usage: python main.py [domain]')
-        sys.exit(1)
-
+async def update(args):
+    domain = args.domain
     con = sqlite3.connect("db.sqlite")
     con.row_factory = sqlite3.Row
     with con:
@@ -115,7 +112,7 @@ async def main():
             if p in existing_domains:
                 data = existing_domains[p]
                 if (
-                    (any(i in data["error"] for i in ("DNSError", "CertificateError"))
+                    (any(i in data["error"] for i in ("DNSError", "CertificateError")))
                     or datetime.fromtimestamp(data["last_updated_at"], tz=UTC)
                     > six_hours_ago
                 ):
@@ -160,6 +157,7 @@ async def main():
             (r.__dict__ for r in results),
         )
     # TODO: This only prints the results, and not the ones we didn't fetch because they were already in the database.
+    # TODO: I think we can use existing_rows to print existing rows too, but I need more brain cycles than I have now for that.
     print(
         tabulate(
             sorted(
@@ -175,5 +173,48 @@ async def main():
     )
 
 
-if __name__ == "__main__":
+async def query(args):
+    con = sqlite3.connect("db.sqlite")
+    con.row_factory = sqlite3.Row
+    with con:
+        cur = con.cursor()
+        cur.execute(
+            """SELECT domain, software_name, software_version, strftime('%Y-%m-%d', datetime(last_updated_at, 'unixepoch')) FROM instances WHERE software_name = 'pixelfed'"""
+        )
+        results = cur.fetchall()
+    print(
+        tabulate(
+            sorted(
+                results,
+                key=lambda x: x["software_version"],
+            ),
+            headers={
+                "domain": "domain",
+                "last_updated_at": "last_updated_at",
+                # "software_name": "software",
+                "software_version": "version",
+                # "error": "error"
+            },
+            tablefmt="github",
+        )
+    )
+
+
+async def main():
+    parser = argparse.ArgumentParser(prog='fediverse-peer-explorer')
+    # parser.add_argument('--foo', action='store_true', help='foo help')
+    subparsers = parser.add_subparsers(help='when does this show?', required=True)
+    parser_query = subparsers.add_parser('query', help='print data from DB')
+    parser_query.set_defaults(func=query)
+    # parser_query.add_argument('bar', type=int, help='bar help')
+    parser_update = subparsers.add_parser('update', help='fetch peer software + versions')
+    parser_update.add_argument('domain', type=str, help='domain where we\'ll fetch peers from')
+    parser_update.set_defaults(func=update)
+    args = parser.parse_args()
+    await args.func(args)
+
+def outer_main():
     asyncio.run(main())
+
+if __name__ == "__main__":
+    outer_main()
