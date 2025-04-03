@@ -122,15 +122,20 @@ async def fetch(session: ClientSession, peer: str, semaphore) -> FediverseInstan
         ) as e:
             # TODO: If error, check if it's a 404 or 500/network error, as these may
             # indicate that the server is no longer existent.
+
+            # TODO: Probably get rid of this
             if any(i in peer for i in ("pix", "photo")):
                 print(f"Error fetching {peer}: {type(e)} {e}")
+
             return FediverseInstance(
                 peer,
                 last_updated_at=datetime.now(UTC).timestamp(),
                 error=f"Error fetching {peer}: {type(e)} {e}",
                 last_error_type=e.__class__.__name__,
+                fetch_error_count=1,
             )
         except Exception as e:
+            # TODO: Probably get rid of this
             if any(i in peer for i in ("pix", "photo")):
                 print(f"Error fetching {peer}: {type(e)} {e}")
             raise
@@ -188,6 +193,7 @@ async def update(args):
             for idx, p in enumerate(fetched_peers):
                 if not isinstance(task_results[idx], Exception):
                     results.append(task_results[idx])
+                # TODO: Probably get rid of this
                 if not any(i in p for i in ("pix", "photo")):
                     continue
                 if isinstance(task_results[idx], Exception):
@@ -225,14 +231,15 @@ async def query(args):
     with con:
         cur = con.cursor()
         cur.execute(
-            """SELECT domain, software_name, software_version, strftime('%Y-%m-%d', datetime(last_updated_at, 'unixepoch')) FROM instances WHERE software_name = 'pixelfed'"""
+            """SELECT domain, software_name, software_version, strftime('%Y-%m-%d', datetime(last_updated_at, 'unixepoch')) FROM instances WHERE software_name = ?""",
+            (args.software,),
         )
         results = cur.fetchall()
     print(
         tabulate(
             sorted(
                 results,
-                key=lambda x: x["software_version"],
+                key=lambda x: x["software_version"] or "",
             ),
             headers={
                 "domain": "domain",
@@ -248,7 +255,7 @@ async def query(args):
 
 async def main():
     parser = argparse.ArgumentParser(prog="fediverse-peer-explorer")
-    # parser.add_argument('--foo', action='store_true', help='foo help')
+    parser.add_argument('--software', default='pixelfed', help='software to print data for, e.g. mastodon, wordpress, gotosocial, peertube, misskey, pleroma, akkoma, pixelfed, sharkey, lemmy')
     subparsers = parser.add_subparsers(help="when does this show?", required=True)
     parser_query = subparsers.add_parser("query", help="print data from DB")
     parser_query.set_defaults(func=query)
