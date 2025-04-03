@@ -5,6 +5,9 @@ from json import JSONDecodeError
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, UTC, timedelta
+from subprocess import check_output
+from typing import Optional
+
 from itertools import batched
 from enum import StrEnum, auto
 from typing import Optional
@@ -53,6 +56,12 @@ EXAMPLE_CHECKS = [
         "error": "Yada yada",
     },
 ]
+
+
+try:
+    VERSION = check_output("git", "rev-parse", "--short", "HEAD")
+except Exception:
+    VERSION = "unknown"
 
 
 @dataclass
@@ -141,6 +150,9 @@ async def update(args):
     async with CachedSession(
         cache=SQLiteBackend("demo_cache", expire_after=60 * 60 * 6),
         timeout=ClientTimeout(total=15, sock_connect=15),
+        headers={
+            "User-Agent": f"Fediverse Peer Explorer/{VERSION} ({SERVER_SOFTWARE}; +https://{domain}/) (like Mastodon)"
+        },
     ) as session:
         all_peers = await (
             await session.get(f"https://{domain}/api/v1/instance/peers")
